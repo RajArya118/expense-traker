@@ -355,3 +355,58 @@ export async function getAnalyticsAction(
     return { success: false, error: err.message || "Failed to compute financial analytics." };
   }
 }
+
+/**
+ * Server Action: Creates a new user category.
+ */
+export async function createCategoryAction(
+  name: string,
+  type: "income" | "expense",
+  color: string = "#6366f1",
+  icon: string = "Tag"
+): Promise<ActionResult<any>> {
+  try {
+    const session = await requireAuth();
+    if (!name || name.trim().length < 2) {
+      return { success: false, error: "Category name must be at least 2 characters." };
+    }
+
+    const cat = await TransactionRepository.createCategory(
+      session.userId,
+      name.trim(),
+      type,
+      color,
+      icon
+    );
+
+    revalidatePath("/categories");
+    revalidatePath("/transactions");
+    revalidatePath("/budgets");
+    return { success: true, data: cat };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to create category." };
+  }
+}
+
+/**
+ * Server Action: Deletes a user-created category.
+ */
+export async function deleteCategoryAction(
+  categoryId: string
+): Promise<ActionResult<{ deletedId: string }>> {
+  try {
+    const session = await requireAuth();
+    const success = await TransactionRepository.deleteCategory(session.userId, categoryId);
+
+    if (!success) {
+      return { success: false, error: "Cannot delete category (system category or in-use)." };
+    }
+
+    revalidatePath("/categories");
+    revalidatePath("/transactions");
+    revalidatePath("/budgets");
+    return { success: true, data: { deletedId: categoryId } };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to delete category." };
+  }
+}

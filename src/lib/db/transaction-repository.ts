@@ -323,6 +323,76 @@ export class TransactionRepository {
   }
 
   /**
+   * Creates a new user category.
+   */
+  static async createCategory(
+    userId: string,
+    name: string,
+    type: "income" | "expense",
+    color: string = "#6366f1",
+    icon: string = "Tag"
+  ) {
+    try {
+      const dbCat = await prisma.category.create({
+        data: {
+          userId,
+          name,
+          type: type === "income" ? CategoryType.INCOME : CategoryType.EXPENSE,
+          color,
+          icon,
+          isSystem: false,
+        },
+      });
+      return {
+        id: dbCat.id,
+        name: dbCat.name,
+        type: dbCat.type.toLowerCase() as "income" | "expense",
+        color: dbCat.color,
+        icon: dbCat.icon,
+      };
+    } catch {
+      // Fallback
+    }
+
+    const newCat = {
+      id: `cat-${Date.now()}`,
+      name,
+      type: type === "income" ? "INCOME" : "EXPENSE",
+      color,
+      icon,
+    };
+    inMemoryStore.categories.push(newCat);
+    return {
+      id: newCat.id,
+      name: newCat.name,
+      type,
+      color: newCat.color,
+      icon: newCat.icon,
+    };
+  }
+
+  /**
+   * Deletes a user-created category.
+   */
+  static async deleteCategory(userId: string, categoryId: string): Promise<boolean> {
+    try {
+      await prisma.category.delete({
+        where: { id: categoryId, userId },
+      });
+      return true;
+    } catch {
+      // Fallback
+    }
+
+    const index = inMemoryStore.categories.findIndex((c) => c.id === categoryId);
+    if (index !== -1) {
+      inMemoryStore.categories.splice(index, 1);
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Retrieves accounts for the user.
    */
   static async getAccounts(userId: string) {
